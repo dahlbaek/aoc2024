@@ -22,8 +22,7 @@ fn main() {
         .iter()
         .zip(list2.iter())
         .map(|(&l, &r)| l.abs_diff(r))
-        .reduce(|x, y| x + y)
-        .unwrap();
+        .sum::<u64>();
 
     println!("Part 1: {}", part1);
 
@@ -42,8 +41,7 @@ fn main() {
                 .map(ToOwned::to_owned)
                 .unwrap_or_default()
         })
-        .reduce(|x, y| x + y)
-        .unwrap();
+        .sum::<u64>();
 
     println!("Part 2: {}", part2);
 }
