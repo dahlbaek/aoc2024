@@ -14,7 +14,7 @@ fn part1() -> usize {
     let rows = PUZZLE
         .split(|&b| b == b'\n')
         .filter(|l| !l.is_empty())
-        .map(|row| row.iter().cloned().collect::<Vec<u8>>())
+        .map(|row| row.into_iter().cloned().collect::<Vec<u8>>())
         .collect::<Vec<Vec<u8>>>();
 
     let mut cols = vec![Vec::new(); DIM];
@@ -28,10 +28,10 @@ fn part1() -> usize {
         }
     }
 
-    rows.iter()
-        .chain(&cols)
-        .chain(&netosw)
-        .chain(&nwtose)
+    rows.into_iter()
+        .chain(cols)
+        .chain(netosw)
+        .chain(nwtose)
         .map(count_occurrences)
         .sum::<usize>()
 }
@@ -52,12 +52,12 @@ fn is_xmas(row: usize, col: usize) -> bool {
     if row == 0 || col == 0 {
         false
     } else {
-        let nwtose = &[
+        let nwtose = [
             get!(row - 1, col - 1),
             get!(row, col),
             get!(row + 1, col + 1),
         ];
-        let netosw = &[
+        let netosw = [
             get!(row - 1, col + 1),
             get!(row, col),
             get!(row + 1, col - 1),
