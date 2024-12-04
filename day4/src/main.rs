@@ -17,35 +17,16 @@ fn part1() -> usize {
         .map(|row| row.iter().cloned().collect::<Vec<u8>>())
         .collect::<Vec<Vec<u8>>>();
 
-    let cols = {
-        let mut cols = vec![Vec::new(); DIM];
+    let mut cols = vec![Vec::new(); DIM];
+    let mut netosw = vec![Vec::new(); 2 * DIM - 1];
+    let mut nwtose = vec![Vec::new(); 2 * DIM - 1];
+    for i in 0..DIM {
         for j in 0..DIM {
-            for i in 0..DIM {
-                cols[j].push(rows[i][j])
-            }
+            cols[j].push(rows[i][j]);
+            netosw[i + j].push(rows[i][j]);
+            nwtose[DIM - 1 + i - j].push(rows[i][j]);
         }
-        cols
-    };
-
-    let netosw = {
-        let mut netosw = vec![Vec::new(); 2 * DIM - 1];
-        for i in 0..DIM {
-            for j in i..i + DIM {
-                netosw[j].push(rows[i][j - i]);
-            }
-        }
-        netosw
-    };
-
-    let nwtose = {
-        let mut nwtose = vec![Vec::new(); 2 * DIM - 1];
-        for i in 0..DIM {
-            for j in i..i + DIM {
-                nwtose[j].push(rows[i][DIM + i - 1 - j]);
-            }
-        }
-        nwtose
-    };
+    }
 
     rows.iter()
         .chain(&cols)
