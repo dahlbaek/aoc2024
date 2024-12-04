@@ -14,59 +14,45 @@ fn part1() -> usize {
     let rows = PUZZLE
         .split(|&b| b == b'\n')
         .filter(|l| !l.is_empty())
-        .collect::<Vec<&[u8]>>();
-    let dim = rows.len();
+        .map(|row| row.iter().cloned().collect::<Vec<u8>>())
+        .collect::<Vec<Vec<u8>>>();
+
     let cols = {
-        let mut cols = Vec::new();
-        for i in 0..dim {
-            let mut col = Vec::new();
-            for j in 0..dim {
-                col.push(rows[j][i])
+        let mut cols = vec![Vec::new(); DIM];
+        for j in 0..DIM {
+            for i in 0..DIM {
+                cols[j].push(rows[i][j])
             }
-            cols.push(col);
         }
         cols
     };
 
     let netosw = {
-        let mut netosw = Vec::new();
-        for i in 0..2 * dim - 1 {
-            let mut diag = Vec::new();
-            for j in 0..dim {
-                if let Some(row) = rows.get(j) {
-                    if i >= j {
-                        if let Some(&v) = row.get(i - j) {
-                            diag.push(v);
-                        }
-                    }
-                }
+        let mut netosw = vec![Vec::new(); 2 * DIM - 1];
+        for i in 0..DIM {
+            for j in i..i + DIM {
+                netosw[j].push(rows[i][j - i]);
             }
-            netosw.push(diag);
         }
         netosw
     };
+
     let nwtose = {
-        let mut nwtose = Vec::new();
-        for i in 0..2 * dim - 1 {
-            let mut diag = Vec::new();
-            for j in 0..dim {
-                if let Some(row) = rows.get(j) {
-                    if dim + j >= i + 1 {
-                        if let Some(&v) = row.get(dim + j - 1 - i) {
-                            diag.push(v);
-                        }
-                    }
-                }
+        let mut nwtose = vec![Vec::new(); 2 * DIM - 1];
+        for i in 0..DIM {
+            for j in i..i + DIM {
+                nwtose[j].push(rows[i][DIM + i - 1 - j]);
             }
-            nwtose.push(diag);
         }
         nwtose
     };
 
-    rows.iter().map(count_occurrences).sum::<usize>()
-        + cols.iter().map(count_occurrences).sum::<usize>()
-        + netosw.iter().map(count_occurrences).sum::<usize>()
-        + nwtose.iter().map(count_occurrences).sum::<usize>()
+    rows.iter()
+        .chain(&cols)
+        .chain(&netosw)
+        .chain(&nwtose)
+        .map(count_occurrences)
+        .sum::<usize>()
 }
 
 const MAS: &[u8] = b"MAS";
