@@ -1,6 +1,6 @@
 const PUZZLE: &str = include_str!("puzzle");
 
-fn is_safe_part1(l: &str) -> bool {
+fn is_safe_part1(l: &&str) -> bool {
     l.split_ascii_whitespace()
         .map(|i| i.parse::<i64>().unwrap())
         .collect::<Vec<i64>>()
@@ -45,7 +45,7 @@ fn part2_impl(first: i64, second: i64, tail: &[i64], signum: i64, has_skipped: b
     }
 }
 
-fn is_safe_part2(l: &str) -> bool {
+fn is_safe_part2(l: &&str) -> bool {
     let ints = l
         .split_ascii_whitespace()
         .map(|i| i.parse::<i64>().unwrap())
@@ -70,19 +70,9 @@ fn is_safe_part2(l: &str) -> bool {
 }
 
 fn main() {
-    let part1 = PUZZLE
-        .trim()
-        .lines()
-        .map(is_safe_part1)
-        .filter(|&p| p)
-        .count();
+    let part1 = PUZZLE.trim().lines().filter(is_safe_part1).count();
     println!("Part 1: {}", part1);
 
-    let part2 = PUZZLE
-        .trim()
-        .lines()
-        .map(is_safe_part2)
-        .filter(|&p| p)
-        .count();
+    let part2 = PUZZLE.trim().lines().filter(is_safe_part2).count();
     println!("Part 2: {}", part2);
 }
