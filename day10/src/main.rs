@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::Reverse,
+    collections::{HashMap, HashSet},
+};
 
 const PUZZLE: &[u8] = include_bytes!("puzzle");
 const DIM: usize = 45;
@@ -11,7 +14,7 @@ fn get_descending_indices() -> Vec<(usize, usize)> {
     let mut indices = (0..DIM)
         .flat_map(|i| (0..DIM).map(move |j| (i, j)))
         .collect::<Vec<_>>();
-    indices.sort_unstable_by_key(|&index| -i16::from(get(index)));
+    indices.sort_unstable_by_key(|&index| Reverse(get(index)));
     indices
 }
 
