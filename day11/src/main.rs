@@ -52,21 +52,17 @@ fn add_elements(mut space: HashSet<u64>, &element: &u64) -> HashSet<u64> {
     space
 }
 
-fn next_counts(
-    acc: HashMap<(u64, u32), u64>,
-    left: u32,
-    space: &HashSet<u64>,
-) -> HashMap<(u64, u32), u64> {
+fn next_counts(acc: HashMap<u64, u64>, left: u32, space: &HashSet<u64>) -> HashMap<u64, u64> {
     space.iter().fold(HashMap::new(), |mut next_acc, &i| {
         let count = if left == 0 {
             1
         } else {
             next_elements(i)
                 .iter()
-                .map(|&next_element| acc[&(next_element, left - 1)])
+                .map(|&next_element| acc[&next_element])
                 .sum::<u64>()
         };
-        next_acc.insert((i, left), count);
+        next_acc.insert(i, count);
         next_acc
     })
 }
@@ -82,6 +78,6 @@ fn main() {
 
     let space = parsed.iter().fold(HashSet::new(), add_elements);
     let counts = (0..76).fold(HashMap::new(), |acc, left| next_counts(acc, left, &space));
-    let part2 = parsed.iter().map(|&i| counts[&(i, 75)]).sum::<u64>();
+    let part2 = parsed.iter().map(|i| counts[i]).sum::<u64>();
     println!("Part 2: {}", part2);
 }
