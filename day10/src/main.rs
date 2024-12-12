@@ -1,21 +1,22 @@
 use std::{
-    cmp::Reverse,
     collections::{HashMap, HashSet},
+    iter,
 };
 
 const PUZZLE: &[u8] = include_bytes!("puzzle");
 const DIM: usize = 45;
 
+type Scores = HashMap<(usize, usize), HashSet<(usize, usize)>>;
+type Ratings = HashMap<(usize, usize), u64>;
+
 fn get((col, row): (usize, usize)) -> u8 {
     PUZZLE[col + (DIM + 1) * row] - 48
 }
 
-fn get_descending_indices() -> Vec<(usize, usize)> {
-    let mut indices = (0..DIM)
+fn get_highes_indices() -> impl Iterator<Item = (usize, usize)> {
+    (0..DIM)
         .flat_map(|i| (0..DIM).map(move |j| (i, j)))
-        .collect::<Vec<_>>();
-    indices.sort_unstable_by_key(|&index| Reverse(get(index)));
-    indices
+        .filter(move |&index| get(index) == 9)
 }
 
 fn next_indices((col, row): (usize, usize)) -> impl Iterator<Item = (usize, usize)> {
@@ -27,61 +28,47 @@ fn next_indices((col, row): (usize, usize)) -> impl Iterator<Item = (usize, usiz
     ]
     .into_iter()
     .flatten()
+    .filter(move |&next_index| get((col, row)) == 1 + get(next_index))
 }
 
-fn add_score(
-    state: &mut HashMap<(usize, usize), HashSet<(usize, usize)>>,
-    &index: &(usize, usize),
-) -> Option<((usize, usize), usize)> {
-    let height = get(index);
-    let value = if height == 9 {
-        HashSet::from([index])
-    } else {
-        next_indices(index)
-            .filter(|&next_index| get(next_index) == height + 1)
-            .fold(HashSet::new(), |mut value, next_index| {
-                value.extend(&state[&next_index]);
-                value
-            })
-    };
-    let score = value.len();
-    state.insert(index, value);
-    Some((index, score))
+fn next_scores(scores: &Scores) -> Option<Scores> {
+    let next = scores
+        .iter()
+        .flat_map(|(&k, v)| next_indices(k).map(move |next_index| (next_index, v)))
+        .fold(Scores::new(), |mut new_state, (next_index, v)| {
+            new_state.entry(next_index).or_default().extend(v);
+            new_state
+        });
+    Some(next)
 }
 
-fn add_rating(
-    state: &mut HashMap<(usize, usize), u64>,
-    &index: &(usize, usize),
-) -> Option<((usize, usize), u64)> {
-    let height = get(index);
-    let value = if height == 9 {
-        1
-    } else {
-        next_indices(index)
-            .filter(|&next_index| get(next_index) == height + 1)
-            .fold(0, |value, next_index| value + state[&next_index])
-    };
-    state.insert(index, value);
-    Some((index, value))
+fn next_ratings(ratings: &Ratings) -> Option<Ratings> {
+    let next = ratings
+        .iter()
+        .flat_map(|(&k, v)| next_indices(k).map(move |next_index| (next_index, v)))
+        .fold(Ratings::new(), |mut new_state, (next_index, v)| {
+            *new_state.entry(next_index).or_default() += v;
+            new_state
+        });
+    Some(next)
 }
 
 fn main() {
-    let indices = get_descending_indices();
-
-    let part1 = indices
-        .iter()
-        .scan(HashMap::new(), add_score)
-        .filter(|&(index, _)| get(index) == 0)
-        .map(|(_, score)| score)
+    let first_scores = get_highes_indices().map(|index| (index, HashSet::from([index])));
+    let part1 = iter::successors(Some(first_scores.collect()), next_scores)
+        .nth(9)
+        .unwrap()
+        .values()
+        .map(|s| s.len())
         .sum::<usize>();
 
     println!("Part 1: {}", part1);
 
-    let part2 = indices
-        .iter()
-        .scan(HashMap::new(), add_rating)
-        .filter(|&(index, _)| get(index) == 0)
-        .map(|(_, rating)| rating)
+    let first_ratings = get_highes_indices().map(|index| (index, 1));
+    let part2 = iter::successors(Some(first_ratings.collect()), next_ratings)
+        .nth(9)
+        .unwrap()
+        .values()
         .sum::<u64>();
 
     println!("Part 2: {}", part2);
