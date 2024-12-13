@@ -127,9 +127,9 @@ fn part2() -> u64 {
     outcome
         .iter()
         .scan(0, |state, slot| {
-            let res = *state;
+            let start_index = *state;
             *state += slot.size;
-            Some((res, slot))
+            Some((start_index, slot))
         })
         .filter_map(|(start_index, slot)| slot.id.map(|id| (start_index, id, slot.size)))
         .fold(0, |agg, (start_index, id, size)| {
