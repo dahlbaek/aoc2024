@@ -1,13 +1,8 @@
-use std::{
-    cmp::min,
-    collections::{HashMap, HashSet},
-    iter::from_fn,
-};
+use std::cmp::min;
 
 const PUZZLE: &str = include_str!("puzzle");
 
 type Position = (isize, isize);
-type CheapestStrategy = HashMap<Position, u64>;
 
 #[derive(Debug, Clone)]
 struct Input {
@@ -39,32 +34,16 @@ fn parse() -> Vec<Input> {
         .collect()
 }
 
-fn next_positions((x, y): Position, input: &Input) -> [(Position, u64); 2] {
-    [
-        ((x + input.a.0, y + input.a.1), 3),
-        ((x + input.b.0, y + input.b.1), 1),
-    ]
-}
-
-fn cheapest(input: Input) -> impl FnMut() -> Option<Option<u64>> {
-    let mut state = CheapestStrategy::from([((0, 0), 0)]);
-    let mut latest_points = HashSet::from([(0, 0)]);
-    move || {
-        let mut new_latest_points = HashSet::new();
-        for &position in &latest_points {
-            let tokens = state[&position];
-            for (next_position, additional_tokens) in next_positions(position, &input) {
-                new_latest_points.insert(next_position);
-                let path_tokens = tokens + additional_tokens;
-                state
-                    .entry(next_position)
-                    .and_modify(|e| *e = min(*e, path_tokens))
-                    .or_insert(path_tokens);
+fn cheapest(input: &Input) -> Option<isize> {
+    let mut min_price = None;
+    for a in 0..=100 {
+        for b in 0..=100 {
+            if input.prize == (a * input.a.0 + b * input.b.0, a * input.a.1 + b * input.b.1) {
+                min_price = min_price.map(|c| min(c, a * 3 + b)).or(Some(a * 3 + b));
             }
         }
-        latest_points = new_latest_points;
-        Some(state.get(&input.prize).cloned())
     }
+    min_price
 }
 
 fn part2_input(input: &Input) -> Input {
@@ -97,10 +76,7 @@ fn direct(input: Input) -> Option<isize> {
 fn main() {
     let parsed = parse();
 
-    let part1 = parsed
-        .iter()
-        .filter_map(|input| from_fn(cheapest(input.clone())).nth(200).unwrap())
-        .sum::<u64>();
+    let part1 = parsed.iter().filter_map(cheapest).sum::<isize>();
     println!("Part 1: {}", part1);
 
     let part2 = parsed
