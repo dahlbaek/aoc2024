@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, iter::from_fn};
 
 const PUZZLE: &[u8] = include_bytes!("puzzle");
 const DIM: usize = 140;
@@ -33,22 +33,23 @@ fn get_unvisited(visited: &Positions, seen: &Positions) -> Option<Position> {
     seen.iter().filter(|p| !visited.contains(p)).next().cloned()
 }
 
-fn add_region(visited: &mut Positions, position: Position) -> Option<Option<Positions>> {
-    if visited.contains(&position) {
-        Some(None)
-    } else {
-        let plant = get(position);
-        let mut positions = Positions::new();
-        positions.insert(position);
-        while let Some(position) = get_unvisited(&visited, &positions) {
-            visited.insert(position);
-            for neighbor in neighbors(position) {
-                if get(neighbor) == plant {
-                    positions.insert(neighbor);
+fn region_chunks() -> impl FnMut() -> Option<Positions> {
+    let mut visited = Positions::new();
+    let mut points = (0..DIM).flat_map(|row| (0..DIM).map(move |col| (row, col)));
+    move || {
+        points.find(|p| !visited.contains(p)).map(|position| {
+            let plant = get(position);
+            let mut positions = Positions::from([position]);
+            while let Some(position) = get_unvisited(&visited, &positions) {
+                visited.insert(position);
+                for neighbor in neighbors(position) {
+                    if get(neighbor) == plant {
+                        positions.insert(neighbor);
+                    }
                 }
             }
-        }
-        Some(Some(positions))
+            positions
+        })
     }
 }
 
@@ -112,11 +113,7 @@ fn get_sides(positions: &Positions) -> usize {
 }
 
 fn main() {
-    let regions = (0..DIM)
-        .flat_map(|row| (0..DIM).map(move |col| (row, col)))
-        .scan(Positions::new(), add_region)
-        .flatten()
-        .collect::<Vec<_>>();
+    let regions = from_fn(region_chunks()).collect::<Vec<_>>();
 
     let part1 = regions
         .iter()
