@@ -30,7 +30,7 @@ fn neighbors((row, col): Position) -> impl Iterator<Item = Position> {
 }
 
 fn get_unvisited(visited: &Positions, seen: &Positions) -> Option<Position> {
-    seen.iter().filter(|p| !visited.contains(p)).next().cloned()
+    seen.iter().find(|p| !visited.contains(p)).cloned()
 }
 
 fn region_chunks() -> impl FnMut() -> Option<Positions> {
@@ -123,7 +123,7 @@ fn main() {
 
     let part2 = regions
         .iter()
-        .map(|region| get_sides(&region) * region.len())
+        .map(|region| get_sides(region) * region.len())
         .sum::<usize>();
     println!("Part 2: {}", part2)
 }
