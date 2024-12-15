@@ -1,5 +1,5 @@
 use core::str;
-use std::{iter::successors, thread, time::Duration};
+use std::{collections::HashMap, iter::successors, thread, time::Duration};
 
 const PUZZLE: &str = include_str!("puzzle");
 const DIM: isize = 50;
@@ -28,20 +28,17 @@ fn as_usize(i: isize) -> usize {
     i.try_into().unwrap()
 }
 
-fn as_isize(u: usize) -> isize {
-    u.try_into().unwrap()
+fn get(map: &[u8], width: isize, (row, col): Position) -> u8 {
+    map[as_usize(col + (width + 1) * row)]
 }
 
-fn get(map: &[u8], (row, col): Position) -> u8 {
-    map[as_usize(col + (DIM + 1) * row)]
+fn set(map: &mut [u8], width: isize, (row, col): Position, value: u8) {
+    map[as_usize(col + (width + 1) * row)] = value
 }
 
-fn set(map: &mut [u8], (row, col): Position, value: u8) {
-    map[as_usize(col + (DIM + 1) * row)] = value
-}
-
-fn as_position(u: usize) -> Position {
-    (as_isize(u) / (DIM + 1), as_isize(u) % (DIM + 1))
+fn as_position(u: usize, width: isize) -> Position {
+    let i: isize = u.try_into().unwrap();
+    (i / (width + 1), i % (width + 1))
 }
 
 fn parse() -> (Vec<u8>, Vec<Direction>) {
@@ -55,33 +52,129 @@ fn parse() -> (Vec<u8>, Vec<Direction>) {
     (map, directions)
 }
 
-fn go(position: Position, direction: &Direction) -> Option<Position> {
+fn parse2() -> Vec<u8> {
+    let (raw_map, _) = PUZZLE.split_once("\n\n").unwrap();
+    let map = raw_map
+        .bytes()
+        .flat_map(|b| match b {
+            b'#' => vec![b'#', b'#'].into_iter(),
+            b'O' => vec![b'[', b']'].into_iter(),
+            b'.' => vec![b'.', b'.'].into_iter(),
+            b'@' => vec![b'@', b'.'].into_iter(),
+            b'\n' => vec![b'\n'].into_iter(),
+            _ => panic!("unknown byte: {}", str::from_utf8(&[b]).unwrap()),
+        })
+        .collect();
+    map
+}
+
+fn go(position: &Position, direction: &Direction, height: isize, width: isize) -> Option<Position> {
     let next = (position.0 + direction.0, position.1 + direction.1);
-    if next.0 >= 0 && next.0 < DIM && next.1 >= 0 && next.1 < DIM {
+    if next.0 >= 0 && next.0 < height && next.1 >= 0 && next.1 < width {
         Some(next)
     } else {
         None
     }
 }
 
-fn run_instruction(mut map: Vec<u8>, direction: &Direction) -> Vec<u8> {
-    let robot = as_position(map.iter().position(|&b| b == b'@').unwrap());
-    let iterations = successors(Some(robot), |&position| go(position, direction))
-        .take_while(|&position| get(&map, position) != b'#')
-        .position(|position| get(&map, position) == b'.')
+fn run_instruction(mut map: Vec<u8>, dim: isize, direction: &Direction) -> Vec<u8> {
+    let robot = as_position(map.iter().position(|&b| b == b'@').unwrap(), dim);
+    let iterations = successors(Some(robot), |position| go(position, direction, dim, dim))
+        .take_while(|&position| get(&map, dim, position) != b'#')
+        .position(|position| get(&map, dim, position) == b'.')
         .map(|n| n + 1);
 
     if let Some(n) = iterations {
-        let mut iter = successors(Some(robot), |&position| go(position, direction)).take(n);
+        let mut iter =
+            successors(Some(robot), |position| go(position, direction, dim, dim)).take(n);
 
         let first = iter.next().unwrap();
-        set(&mut map, first, b'.');
+        set(&mut map, dim, first, b'.');
 
         let second = iter.next().unwrap();
-        set(&mut map, second, b'@');
+        set(&mut map, dim, second, b'@');
 
         for position in iter {
-            set(&mut map, position, b'O');
+            set(&mut map, dim, position, b'O');
+        }
+    }
+
+    if DEBUG {
+        thread::sleep(Duration::from_micros(10));
+        println!("{}\n", str::from_utf8(&map).unwrap(),);
+    }
+
+    map
+}
+
+fn move_ns<'a>(
+    map: &'a [u8],
+    height: isize,
+    width: isize,
+    direction: &'a Direction,
+) -> impl Fn(&HashMap<Position, (u8, u8)>) -> Option<HashMap<Position, (u8, u8)>> + 'a {
+    move |positions| {
+        positions
+            .iter()
+            .filter(|(_, (old, _))| *old != b'.')
+            .try_fold(
+                HashMap::new(),
+                |mut next_positions, (position, (old, _))| {
+                    let next_position = go(position, direction, height, width).unwrap();
+                    match get(map, width, next_position) {
+                        b'[' => {
+                            next_positions.entry(next_position).or_insert((b'[', *old));
+                            let e_pos = go(position, &EAST, height, width).unwrap();
+                            let e_val = positions.get(&e_pos).map(|b| b.0).unwrap_or(b'.');
+                            let next_e_post = go(&next_position, &EAST, height, width).unwrap();
+                            next_positions.entry(next_e_post).or_insert((b']', e_val));
+                            Some(next_positions)
+                        }
+                        b']' => {
+                            next_positions.entry(next_position).or_insert((b']', *old));
+                            let w_pos = go(position, &WEST, height, width).unwrap();
+                            let w_val = positions.get(&w_pos).map(|b| b.0).unwrap_or(b'.');
+                            let next_we_pos = go(&next_position, &WEST, height, width).unwrap();
+                            next_positions.entry(next_we_pos).or_insert((b'[', w_val));
+                            Some(next_positions)
+                        }
+                        b'.' => {
+                            next_positions.insert(next_position, (b'.', *old));
+                            Some(next_positions)
+                        }
+                        b'#' => None,
+                        _ => panic!(),
+                    }
+                },
+            )
+            .filter(|next_positions| !next_positions.is_empty())
+    }
+}
+
+fn run_instruction2(mut map: Vec<u8>, h: isize, w: isize, direction: &Direction) -> Vec<u8> {
+    let robot = as_position(map.iter().position(|&b| b == b'@').unwrap(), w);
+    if [EAST, WEST].contains(direction) {
+        let iterations = successors(Some(robot), |&position| go(&position, direction, h, w))
+            .take_while(|&position| get(&map, w, position) != b'#')
+            .position(|position| get(&map, w, position) == b'.')
+            .map(|n| n + 1);
+
+        if let Some(n) = iterations {
+            let mut value = b'.';
+            for pos in successors(Some(robot), |pos| go(pos, direction, h, w)).take(n) {
+                let old_value = value;
+                value = get(&map, w, pos);
+                set(&mut map, w, pos, old_value);
+            }
+        }
+    } else {
+        let positions = Some(HashMap::from([(robot, (b'@', b'.'))]));
+        let mapping = successors(positions, move_ns(&map, h, w, direction)).collect::<Vec<_>>();
+        if mapping.last().unwrap().iter().all(|(_, (b, _))| *b == b'.') {
+            mapping
+                .into_iter()
+                .flatten()
+                .for_each(|(pos, (_, new))| set(&mut map, w, pos, new));
         }
     }
 
@@ -94,14 +187,27 @@ fn run_instruction(mut map: Vec<u8>, direction: &Direction) -> Vec<u8> {
 }
 
 fn main() {
-    let (map, instructions) = parse();
-
-    let part1_map = instructions.iter().fold(map, run_instruction);
-    let part1 = (0..DIM)
-        .flat_map(|x| (0..DIM).map(move |y| (x, y)))
-        .filter(|&position| get(&part1_map, position) == b'O')
+    let (map1, instructions) = parse();
+    let part1 = instructions
+        .iter()
+        .fold(map1, |acc, i| run_instruction(acc, DIM, i))
+        .into_iter()
+        .enumerate()
+        .filter(|(_, value)| *value == b'O')
+        .map(|(index, _)| as_position(index, DIM))
         .map(|(row, col)| 100 * row + col)
         .sum::<isize>();
+    println!("Part 1: {}", part1);
 
-    println!("Part 1: {}", part1)
+    let map2 = parse2();
+    let part2 = instructions
+        .iter()
+        .fold(map2, |acc, i| run_instruction2(acc, DIM, 2 * DIM, i))
+        .into_iter()
+        .enumerate()
+        .filter(|(_, value)| *value == b'[')
+        .map(|(index, _)| as_position(index, 2 * DIM))
+        .map(|(row, col)| 100 * row + col)
+        .sum::<isize>();
+    println!("Part 2: {}", part2);
 }
