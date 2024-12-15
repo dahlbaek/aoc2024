@@ -19,7 +19,7 @@ fn parse_int(s: &str) -> Result<(u64, &str), ()> {
 }
 
 fn assert_byte(s: &str, b: u8) -> Result<&str, ()> {
-    let head = s.as_bytes().get(0).ok_or(())?;
+    let head = s.as_bytes().first().ok_or(())?;
     if *head == b {
         Ok(&s[1..])
     } else {
