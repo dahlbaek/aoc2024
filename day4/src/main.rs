@@ -14,7 +14,7 @@ fn part1() -> usize {
     let rows = PUZZLE
         .split(|&b| b == b'\n')
         .filter(|l| !l.is_empty())
-        .map(|row| row.into_iter().cloned().collect::<Vec<u8>>())
+        .map(|row| row.to_vec())
         .collect::<Vec<Vec<u8>>>();
 
     let mut cols = vec![Vec::new(); DIM];
