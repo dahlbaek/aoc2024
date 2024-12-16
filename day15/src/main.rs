@@ -53,8 +53,10 @@ fn parse() -> (Vec<u8>, Vec<Direction>) {
 }
 
 fn parse2() -> Vec<u8> {
-    let (raw_map, _) = PUZZLE.split_once("\n\n").unwrap();
-    let map = raw_map
+    PUZZLE
+        .split_once("\n\n")
+        .unwrap()
+        .0
         .bytes()
         .flat_map(|b| match b {
             b'#' => vec![b'#', b'#'].into_iter(),
@@ -64,17 +66,12 @@ fn parse2() -> Vec<u8> {
             b'\n' => vec![b'\n'].into_iter(),
             _ => panic!("unknown byte: {}", str::from_utf8(&[b]).unwrap()),
         })
-        .collect();
-    map
+        .collect()
 }
 
 fn go(position: &Position, direction: &Direction, height: isize, width: isize) -> Option<Position> {
-    let next = (position.0 + direction.0, position.1 + direction.1);
-    if next.0 >= 0 && next.0 < height && next.1 >= 0 && next.1 < width {
-        Some(next)
-    } else {
-        None
-    }
+    Some((position.0 + direction.0, position.1 + direction.1))
+        .filter(|&(row, col)| row >= 0 && row < height && col >= 0 && col < width)
 }
 
 fn run_instruction(mut map: Vec<u8>, dim: isize, direction: &Direction) -> Vec<u8> {
@@ -94,9 +91,7 @@ fn run_instruction(mut map: Vec<u8>, dim: isize, direction: &Direction) -> Vec<u
         let second = iter.next().unwrap();
         set(&mut map, dim, second, b'@');
 
-        for position in iter {
-            set(&mut map, dim, position, b'O');
-        }
+        iter.for_each(|position| set(&mut map, dim, position, b'O'));
     }
 
     if DEBUG {
@@ -126,8 +121,8 @@ fn move_ns<'a>(
                             next_positions.entry(next_position).or_insert((b'[', *old));
                             let e_pos = go(position, &EAST, height, width).unwrap();
                             let e_val = positions.get(&e_pos).map(|b| b.0).unwrap_or(b'.');
-                            let next_e_post = go(&next_position, &EAST, height, width).unwrap();
-                            next_positions.entry(next_e_post).or_insert((b']', e_val));
+                            let next_e_pos = go(&next_position, &EAST, height, width).unwrap();
+                            next_positions.entry(next_e_pos).or_insert((b']', e_val));
                             Some(next_positions)
                         }
                         b']' => {
