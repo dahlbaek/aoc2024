@@ -1,12 +1,13 @@
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, HashSet},
+    collections::{BinaryHeap, HashMap, HashSet},
 };
 
-const PUZZLE: &[u8] = include_bytes!("puzzle");
-const DIM: isize = 141;
+type Int = isize;
+type Position = (Int, Int);
 
-type Position = (isize, isize);
+const PUZZLE: &[u8] = include_bytes!("puzzle");
+const DIM: Int = 141;
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash)]
 enum Direction {
@@ -16,11 +17,21 @@ enum Direction {
     South,
 }
 
-#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Hash, Clone)]
 struct Vertex {
-    score: u64,
     pos: Position,
     dir: Direction,
+}
+
+struct Label {
+    score: u64,
+    previous: Vec<Vertex>,
+}
+
+impl Label {
+    fn new(score: u64, previous: Vec<Vertex>) -> Label {
+        Label { score, previous }
+    }
 }
 
 impl Vertex {
@@ -31,11 +42,7 @@ impl Vertex {
             Direction::West => (self.pos.0, self.pos.1 - 1),
             Direction::South => (self.pos.0 + 1, self.pos.1),
         };
-        Vertex {
-            pos,
-            dir: self.dir,
-            score: self.score + 1,
-        }
+        Vertex { pos, dir: self.dir }
     }
 
     fn left(&self) -> Vertex {
@@ -45,11 +52,7 @@ impl Vertex {
             Direction::West => Direction::South,
             Direction::South => Direction::East,
         };
-        Vertex {
-            pos: self.pos,
-            dir,
-            score: self.score + 1000,
-        }
+        Vertex { pos: self.pos, dir }
     }
 
     fn right(&self) -> Vertex {
@@ -59,74 +62,74 @@ impl Vertex {
             Direction::West => Direction::North,
             Direction::South => Direction::West,
         };
-        Vertex {
-            pos: self.pos,
-            dir,
-            score: self.score + 1000,
-        }
+        Vertex { pos: self.pos, dir }
     }
 
-    fn neighbors(&self) -> impl Iterator<Item = Vertex> {
-        [self.forward(), self.left(), self.right()]
-            .into_iter()
-            .filter(|v| get(v.pos) != b'#')
+    fn neighbors(&self, score: u64) -> impl Iterator<Item = (u64, Vertex)> {
+        [
+            (score + 1, self.forward()),
+            (score + 1000, self.left()),
+            (score + 1000, self.right()),
+        ]
+        .into_iter()
+        .filter(|(_, v)| get(v.pos) != b'#')
     }
 }
 
-fn as_usize(i: isize) -> usize {
+fn into_usize(i: Int) -> usize {
     i.try_into().unwrap()
 }
 
 fn get((row, col): Position) -> u8 {
-    PUZZLE[as_usize(col + (DIM + 1) * row)]
+    PUZZLE[into_usize(col + (DIM + 1) * row)]
 }
 
 fn as_position(u: usize) -> Position {
-    let i: isize = u.try_into().unwrap();
+    let i: Int = u.try_into().unwrap();
     (i / (DIM + 1), i % (DIM + 1))
 }
 
-fn dijkstra() -> Vec<(Vertex, Vec<usize>)> {
+fn dijkstra() -> HashMap<Vertex, Label> {
     let start_vertex = Vertex {
         pos: as_position(PUZZLE.iter().position(|&b| b == b'S').unwrap()),
         dir: Direction::East,
-        score: 0,
     };
-    let mut seen = BinaryHeap::from([Reverse((start_vertex, None))]);
-    let mut fixed: Vec<(Vertex, Vec<usize>)> = Vec::new();
-    while let Some((vertex, previous_vertex_index)) = seen.pop().map(|r| r.0) {
-        let fixed_elem = fixed
-            .iter_mut()
-            .find(|(v, _)| v.pos == vertex.pos && v.dir == vertex.dir);
-        match fixed_elem {
-            None => {
-                vertex
-                    .neighbors()
-                    .for_each(|neighbor| seen.push(Reverse((neighbor, Some(fixed.len())))));
-                fixed.push((vertex, previous_vertex_index.into_iter().collect()));
+    let start_label = Label::new(0, Vec::new());
+    let mut heap = BinaryHeap::from([(Reverse(start_label.score), start_vertex.clone())]);
+    let mut labels = HashMap::from([(start_vertex, start_label)]);
+    while let Some((_, vertex)) = heap.pop() {
+        let label = labels.get_mut(&vertex).unwrap();
+        for (neighbor_score, neighbor) in vertex.neighbors(label.score) {
+            match labels.get_mut(&neighbor) {
+                Some(neighbor_label) if neighbor_label.score < neighbor_score => {}
+                Some(neighbor_label) if neighbor_label.score == neighbor_score => {
+                    if !neighbor_label.previous.contains(&vertex) {
+                        neighbor_label.previous.push(vertex.clone());
+                    }
+                }
+                Some(_) | None => {
+                    let neighbor_label = Label::new(neighbor_score, vec![vertex.clone()]);
+                    labels.insert(neighbor.clone(), neighbor_label);
+                    heap.push((Reverse(neighbor_score), neighbor));
+                }
             }
-            Some((v, previous_indices)) if v.score >= vertex.score => {
-                previous_indices.extend(&previous_vertex_index);
-            }
-            Some(_) => {}
         }
     }
-    fixed
+    labels
 }
 
 fn extract_tiles(
-    indices: impl Iterator<Item = usize>,
-    shortest: &[(Vertex, Vec<usize>)],
+    start_vertices: impl Iterator<Item = Vertex>,
+    shortest: &HashMap<Vertex, Label>,
 ) -> HashSet<Position> {
     let mut vertices = HashSet::new();
     let mut stack = Vec::new();
-    for index in indices {
-        stack.push(index);
-        while let Some(index) = stack.pop() {
-            let vertex = &shortest[index].0;
-            if !vertices.contains(&vertex) {
-                vertices.insert(vertex);
-                stack.extend(&shortest[index].1);
+    for vertex in start_vertices {
+        stack.push(vertex);
+        while let Some(previous_vertex) = stack.pop() {
+            if !vertices.contains(&previous_vertex) {
+                stack.extend(shortest[&previous_vertex].previous.clone());
+                vertices.insert(previous_vertex);
             }
         }
     }
@@ -137,17 +140,17 @@ fn main() {
     let shortest = dijkstra();
     let part1 = shortest
         .iter()
-        .filter(|(v, _)| get(v.pos) == b'E')
-        .map(|(v, _)| v.score)
+        .filter(|(vertex, _)| get(vertex.pos) == b'E')
+        .map(|(_, label)| label.score)
         .min()
         .unwrap();
     println!("Part 1: {}", part1);
 
-    let indices = shortest
+    let start_vertices = shortest
         .iter()
-        .enumerate()
-        .filter(|(_, (v, _))| get(v.pos) == b'E' && v.score == part1)
-        .map(|(index, _)| index);
-    let part2 = extract_tiles(indices, &shortest).len();
+        .filter(|(vertex, label)| get(vertex.pos) == b'E' && label.score == part1)
+        .map(|(vertex, _)| vertex)
+        .cloned();
+    let part2 = extract_tiles(start_vertices, &shortest).len();
     println!("Part 2: {}", part2);
 }
