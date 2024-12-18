@@ -1,9 +1,14 @@
-use std::{collections::HashMap, iter::successors};
+use std::{collections::HashSet, iter::successors};
 
 const PUZZLE: &str = include_str!("puzzle");
 
 const DIM: isize = 71;
-const BYTES: usize = 1024;
+
+const START: Position = Position { x: 0, y: 0 };
+const END: Position = Position {
+    x: DIM - 1,
+    y: DIM - 1,
+};
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 struct Position {
@@ -24,10 +29,6 @@ impl Position {
         .into_iter()
         .filter(|pos| pos.x >= 0 && pos.x < DIM && pos.y >= 0 && pos.y < DIM)
     }
-
-    fn as_index(&self) -> usize {
-        into_usize(self.x + self.y * DIM)
-    }
 }
 
 fn parse() -> Vec<Position> {
@@ -41,31 +42,21 @@ fn parse() -> Vec<Position> {
                 y: y.parse().unwrap(),
             }
         })
-        .take(BYTES)
         .collect()
 }
 
-fn into_usize(i: isize) -> usize {
-    i.try_into().unwrap()
+fn new_blocked(fallen: &[Position], limit: usize) -> HashSet<Position> {
+    fallen.iter().take(limit).cloned().collect()
 }
 
-fn new_grid(fallen: &[Position]) -> Vec<bool> {
-    let mut grid = vec![true; into_usize(DIM * DIM)];
-    fallen.iter().for_each(|p| grid[p.as_index()] = false);
-    grid
-}
-
-fn next_step(grid: Vec<bool>) -> impl FnMut(&Vec<Position>) -> Option<Vec<Position>> {
-    let mut seen = HashMap::new();
-    let mut current_steps = 0;
+fn next_step(blocked: HashSet<Position>) -> impl FnMut(&Vec<Position>) -> Option<Vec<Position>> {
+    let mut seen = HashSet::from([START]);
     move |previous| {
-        seen.extend(previous.iter().map(|&p| (p, current_steps)));
-        current_steps += 1;
         let mut next = Vec::new();
         for pos in previous {
             for neighbor in pos.neighbors() {
-                if !seen.contains_key(&neighbor) && grid[neighbor.as_index()] {
-                    seen.insert(neighbor, current_steps);
+                if !seen.contains(&neighbor) && !blocked.contains(&neighbor) {
+                    seen.insert(neighbor);
                     next.push(neighbor);
                 }
             }
@@ -74,18 +65,23 @@ fn next_step(grid: Vec<bool>) -> impl FnMut(&Vec<Position>) -> Option<Vec<Positi
     }
 }
 
-fn main() {
-    let start = Position { x: 0, y: 0 };
-    let end = Position {
-        x: DIM - 1,
-        y: DIM - 1,
-    };
-    let parsed = parse();
-    let grid = new_grid(&parsed);
-    let part1 = successors(Some(vec![start]), next_step(grid))
+fn find_steps(parsed: &[Position], limit: usize) -> Option<usize> {
+    let blocked = new_blocked(parsed, limit);
+
+    successors(Some(vec![START]), next_step(blocked))
         .enumerate()
-        .find(|(_, positions)| positions.contains(&end))
-        .unwrap()
-        .0;
-    println!("Part 1: {}", part1);
+        .find(|(_, positions)| positions.contains(&END))
+        .map(|(index, _)| index)
+}
+
+fn main() {
+    let parsed = parse();
+
+    println!("Part 1: {}", find_steps(&parsed, 1024).unwrap());
+
+    let index = (0..parsed.len())
+        .collect::<Vec<_>>()
+        .partition_point(|&limit| find_steps(&parsed, limit).is_some());
+    let part2 = parsed[index - 1];
+    println!("Part 2: {},{}", part2.x, part2.y)
 }
