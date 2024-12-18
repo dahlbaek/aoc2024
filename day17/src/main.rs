@@ -16,14 +16,13 @@ impl Registers {
 
 impl Registers {
     fn combo(&self, operand: u64) -> u64 {
-        let raw = match operand {
+        match operand {
             0..=3 => operand,
             4 => self.a,
             5 => self.b,
             6 => self.c,
             _ => panic!(),
-        };
-        raw
+        }
     }
 }
 
@@ -87,8 +86,8 @@ fn run(mut registers: Registers, program: &Program) -> String {
     while instruction_pointer < program.len() {
         let (instruction, operand) = program[instruction_pointer];
         match instruction {
-            Instruction::Adv => registers.a = registers.a >> registers.combo(operand),
-            Instruction::Bxl => registers.b = registers.b ^ operand,
+            Instruction::Adv => registers.a >>= registers.combo(operand),
+            Instruction::Bxl => registers.b ^= operand,
             Instruction::Bst => registers.b = registers.combo(operand) % 8,
             Instruction::Jnz => {
                 if registers.a != 0 {
@@ -96,7 +95,7 @@ fn run(mut registers: Registers, program: &Program) -> String {
                     continue;
                 }
             }
-            Instruction::Bxc => registers.b = registers.b ^ registers.c,
+            Instruction::Bxc => registers.b ^= registers.c,
             Instruction::Out => output.push((registers.combo(operand) % 8).to_string()),
             Instruction::Bdv => registers.b = registers.a >> registers.combo(operand),
             Instruction::Cdv => registers.c = registers.a >> registers.combo(operand),
