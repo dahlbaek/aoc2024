@@ -70,12 +70,7 @@ fn parse() -> (Registers, Program) {
         .split(',')
         .collect::<Vec<_>>()
         .chunks(2)
-        .map(|chunk| {
-            (
-                Instruction::from_str(chunk[0]).unwrap(),
-                chunk[1].parse().unwrap(),
-            )
-        })
+        .map(|chunk| (chunk[0].parse().unwrap(), chunk[1].parse().unwrap()))
         .collect();
     (Registers { a, b, c }, program)
 }
