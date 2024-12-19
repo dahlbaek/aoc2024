@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 const PUZZLE: &str = include_str!("puzzle");
 
-fn parse() -> (Vec<&'static str>, Vec<&'static str>) {
+fn parse() -> (HashSet<&'static str>, Vec<&'static str>) {
     let mut lines = PUZZLE.trim().lines();
     let available = lines.next().unwrap().split(", ").collect();
     assert_eq!(lines.next().unwrap(), "");
@@ -10,58 +10,70 @@ fn parse() -> (Vec<&'static str>, Vec<&'static str>) {
     (available, targets)
 }
 
-fn is_buildable(available: &HashMap<u8, Vec<&str>>, target: &str) -> bool {
-    // println!("target: {}", target);
+fn is_buildable_small(available: &HashSet<&str>, target: &str) -> bool {
     target.is_empty()
-        || available.get(&target.as_bytes()[0]).is_some_and(|v| {
-            v.iter().any(|prefix| {
-                // println!("prefix: {}", prefix);
-                target.starts_with(prefix) && is_buildable(available, &target[prefix.len()..])
-            })
+        || (1..=target.len()).any(|j| {
+            available.contains(&target[..j]) && is_buildable_small(available, &target[j..])
         })
 }
 
-fn count(available: &HashMap<u8, Vec<&str>>, target: &str) -> u64 {
-    // println!("target: {}", target);
+fn is_buildable(available: &HashSet<&str>, target: &str) -> bool {
+    if target.len() < 16 {
+        is_buildable_small(available, target)
+    } else {
+        available.iter().any(|s| {
+            let midsection_start = target.len() / 2 - 4;
+            target[midsection_start..target.len() / 2 + 4]
+                .find(s)
+                .is_some_and(|index| {
+                    is_buildable(available, &target[..midsection_start + index])
+                        && is_buildable(available, &target[midsection_start + index + s.len()..])
+                })
+        })
+    }
+}
+
+fn count_small(available: &HashSet<&str>, target: &str) -> u64 {
     if target.is_empty() {
         1
     } else {
-        available[&target.as_bytes()[0]]
-            .iter()
-            .map(|prefix| {
-                if !target.starts_with(prefix) {
-                    0
-                } else {
-                    count(available, &target[prefix.len()..])
-                }
-            })
+        (1..=target.len())
+            .filter(|&j| available.contains(&target[..j]))
+            .map(|j| count_small(available, &target[j..]))
             .sum::<u64>()
     }
 }
 
-fn part1() -> usize {
-    let (available, targets) = parse();
-    let p_available = available.iter().map(|&s| (s.as_bytes()[0], s)).fold(
-        HashMap::from([
-            (b'u', vec!["u"]),
-            (b'g', vec!["g"]),
-            (b'b', vec!["b"]),
-            (b'r', vec!["r"]),
-        ]),
-        |mut acc, (b, prefix)| {
-            if prefix.contains('w') {
-                acc.entry(b).or_insert(vec![]).push(prefix);
-            }
-            acc
-        },
-    );
-    targets
-        .into_iter()
-        .inspect(|raw| println!("raw: {}", raw))
-        .filter(|&target| is_buildable(&p_available, target))
-        .count()
+fn count(available: &HashSet<&str>, target: &str) -> u64 {
+    if target.len() < 16 {
+        count_small(available, target)
+    } else {
+        available
+            .iter()
+            .flat_map(|&s| {
+                let midsection_start = target.len() / 2 - s.len() + 1;
+                (midsection_start..=target.len() / 2)
+                    .filter(move |&j| &target[j..j + s.len()] == s)
+                    .map(move |j| {
+                        count(available, &target[..j]) * count(available, &target[j + s.len()..])
+                    })
+            })
+            .sum()
+    }
 }
 
 fn main() {
-    println!("Part 1: {}", part1());
+    let (available, targets) = parse();
+
+    let part1 = targets
+        .iter()
+        .filter(|target| is_buildable(&available, target))
+        .count();
+    println!("Part 1: {}", part1);
+
+    let part2 = targets
+        .iter()
+        .map(|target| count(&available, target))
+        .sum::<u64>();
+    println!("Part 2: {}", part2);
 }
