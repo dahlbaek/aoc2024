@@ -1,8 +1,5 @@
 use core::str;
-use std::{
-    collections::HashMap,
-    iter::{self, repeat},
-};
+use std::{collections::HashMap, iter::repeat};
 
 const PUZZLE: &str = include_str!("puzzle");
 
@@ -40,14 +37,14 @@ fn next_elements(element: u64) -> Vec<u64> {
     }
 }
 
-fn next_counts(acc: &HashMap<u64, u64>) -> Option<HashMap<u64, u64>> {
+fn next_counts(acc: &HashMap<u64, u64>) -> HashMap<u64, u64> {
     let mut next_acc = HashMap::new();
     for (&i, &v) in acc {
         for next_element in next_elements(i) {
             *next_acc.entry(next_element).or_default() += v;
         }
     }
-    Some(next_acc)
+    next_acc
 }
 
 fn main() {
@@ -59,10 +56,9 @@ fn main() {
     let part1 = parsed.iter().map(|&i| count_part1(i, 25)).sum::<u64>();
     println!("Part 1: {}", part1);
 
-    let initial_counts = Some(parsed.iter().cloned().zip(repeat(1)).collect());
-    let part2 = iter::successors(initial_counts, next_counts)
-        .nth(75)
-        .unwrap()
+    let initial_counts = parsed.iter().cloned().zip(repeat(1)).collect();
+    let part2 = (0..75)
+        .fold(initial_counts, |acc, _| next_counts(&acc))
         .values()
         .sum::<u64>();
     println!("Part 2: {}", part2);
