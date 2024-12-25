@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    iter,
-};
+use std::collections::{HashMap, HashSet};
 
 const PUZZLE: &[u8] = include_bytes!("puzzle");
 const DIM: usize = 45;
@@ -31,33 +28,30 @@ fn next_indices((col, row): (usize, usize)) -> impl Iterator<Item = (usize, usiz
     .filter(move |&next_index| get((col, row)) == 1 + get(next_index))
 }
 
-fn next_scores(scores: &Scores) -> Option<Scores> {
-    let next = scores
+fn next_scores(scores: &Scores) -> Scores {
+    scores
         .iter()
         .flat_map(|(&k, v)| next_indices(k).map(move |next_index| (next_index, v)))
         .fold(Scores::new(), |mut new_state, (next_index, v)| {
             new_state.entry(next_index).or_default().extend(v);
             new_state
-        });
-    Some(next)
+        })
 }
 
-fn next_ratings(ratings: &Ratings) -> Option<Ratings> {
-    let next = ratings
+fn next_ratings(ratings: &Ratings) -> Ratings {
+    ratings
         .iter()
         .flat_map(|(&k, v)| next_indices(k).map(move |next_index| (next_index, v)))
         .fold(Ratings::new(), |mut new_state, (next_index, v)| {
             *new_state.entry(next_index).or_default() += v;
             new_state
-        });
-    Some(next)
+        })
 }
 
 fn main() {
     let first_scores = get_highes_indices().map(|index| (index, HashSet::from([index])));
-    let part1 = iter::successors(Some(first_scores.collect()), next_scores)
-        .nth(9)
-        .unwrap()
+    let part1 = (0..9)
+        .fold(first_scores.collect(), |acc, _| next_scores(&acc))
         .values()
         .map(|s| s.len())
         .sum::<usize>();
@@ -65,9 +59,8 @@ fn main() {
     println!("Part 1: {}", part1);
 
     let first_ratings = get_highes_indices().map(|index| (index, 1));
-    let part2 = iter::successors(Some(first_ratings.collect()), next_ratings)
-        .nth(9)
-        .unwrap()
+    let part2 = (0..9)
+        .fold(first_ratings.collect(), |acc, _| next_ratings(&acc))
         .values()
         .sum::<u64>();
 
