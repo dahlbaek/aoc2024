@@ -1,5 +1,8 @@
 use core::str;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    iter::repeat,
+};
 
 const PUZZLE: &str = include_str!("puzzle");
 
@@ -52,19 +55,17 @@ fn add_elements(mut space: HashSet<u64>, &element: &u64) -> HashSet<u64> {
     space
 }
 
-fn next_counts(acc: HashMap<u64, u64>, left: u32, space: &HashSet<u64>) -> HashMap<u64, u64> {
-    space.iter().fold(HashMap::new(), |mut next_acc, &i| {
-        let count = if left == 0 {
-            1
-        } else {
-            next_elements(i)
+fn next_counts(acc: HashMap<u64, u64>, space: &HashSet<u64>) -> HashMap<u64, u64> {
+    space
+        .iter()
+        .map(|&i| {
+            let count = next_elements(i)
                 .iter()
                 .map(|&next_element| acc[&next_element])
-                .sum::<u64>()
-        };
-        next_acc.insert(i, count);
-        next_acc
-    })
+                .sum::<u64>();
+            (i, count)
+        })
+        .collect()
 }
 
 fn main() {
@@ -77,7 +78,8 @@ fn main() {
     println!("Part 1: {}", part1);
 
     let space = parsed.iter().fold(HashSet::new(), add_elements);
-    let counts = (0..76).fold(HashMap::new(), |acc, left| next_counts(acc, left, &space));
+    let first = space.iter().cloned().zip(repeat(1)).collect();
+    let counts = (0..75).fold(first, |acc, _| next_counts(acc, &space));
     let part2 = parsed.iter().map(|&i| counts[&i]).sum::<u64>();
     println!("Part 2: {}", part2);
 }
