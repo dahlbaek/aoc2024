@@ -1,5 +1,8 @@
 use core::str;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::HashMap,
+    iter::{self, repeat},
+};
 
 const PUZZLE: &str = include_str!("puzzle");
 
@@ -37,34 +40,14 @@ fn next_elements(element: u64) -> Vec<u64> {
     }
 }
 
-fn add_elements(mut space: HashSet<u64>, &element: &u64) -> HashSet<u64> {
-    let mut elems = vec![element];
-    while !elems.is_empty() {
-        for &elem in &elems {
-            space.insert(elem);
+fn next_counts(acc: &HashMap<u64, u64>) -> Option<HashMap<u64, u64>> {
+    let mut next_acc = HashMap::new();
+    for (&i, &v) in acc {
+        for next_element in next_elements(i) {
+            *next_acc.entry(next_element).or_default() += v;
         }
-        elems = elems
-            .iter()
-            .flat_map(|&elem| next_elements(elem))
-            .filter(|elem| !space.contains(elem))
-            .collect::<Vec<_>>();
     }
-    space
-}
-
-fn next_counts(acc: HashMap<u64, u64>, left: u32, space: &HashSet<u64>) -> HashMap<u64, u64> {
-    space.iter().fold(HashMap::new(), |mut next_acc, &i| {
-        let count = if left == 0 {
-            1
-        } else {
-            next_elements(i)
-                .iter()
-                .map(|&next_element| acc[&next_element])
-                .sum::<u64>()
-        };
-        next_acc.insert(i, count);
-        next_acc
-    })
+    Some(next_acc)
 }
 
 fn main() {
@@ -76,8 +59,11 @@ fn main() {
     let part1 = parsed.iter().map(|&i| count_part1(i, 25)).sum::<u64>();
     println!("Part 1: {}", part1);
 
-    let space = parsed.iter().fold(HashSet::new(), add_elements);
-    let counts = (0..76).fold(HashMap::new(), |acc, left| next_counts(acc, left, &space));
-    let part2 = parsed.iter().map(|&i| counts[&i]).sum::<u64>();
+    let initial_counts = Some(parsed.iter().cloned().zip(repeat(1)).collect());
+    let part2 = iter::successors(initial_counts, next_counts)
+        .nth(75)
+        .unwrap()
+        .values()
+        .sum::<u64>();
     println!("Part 2: {}", part2);
 }
