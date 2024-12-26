@@ -25,7 +25,7 @@ fn is_buildable(available: &[HashSet<&str>; MAX_AVAILABLE_LEN], target: &str) ->
         (1..=MAX_AVAILABLE_LEN)
             .flat_map(|len| {
                 let midsection_start = target.len() / 2 - len + 1;
-                (midsection_start..target.len() / 2).map(move |index| (index, len))
+                (midsection_start..=target.len() / 2).map(move |index| (index, len))
             })
             .filter(|&(index, len)| available[len - 1].contains(&target[index..index + len]))
             .any(|(index, len)| {
