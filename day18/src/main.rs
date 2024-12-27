@@ -1,35 +1,17 @@
 use std::{collections::HashSet, iter::successors};
 
+use aoc::{Grid, Position};
+
 const PUZZLE: &str = include_str!("puzzle");
 
-const DIM: isize = 71;
+const DIM: i64 = 71;
+const GRID: Grid = Grid::new(DIM, DIM);
 
 const START: Position = Position { x: 0, y: 0 };
 const END: Position = Position {
     x: DIM - 1,
     y: DIM - 1,
 };
-
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
-struct Position {
-    x: isize,
-    y: isize,
-}
-
-impl Position {
-    fn neighbors(&self) -> impl Iterator<Item = Position> {
-        let x = self.x;
-        let y = self.y;
-        [
-            Position { x, y: y + 1 },
-            Position { x, y: y - 1 },
-            Position { x: x + 1, y },
-            Position { x: x - 1, y },
-        ]
-        .into_iter()
-        .filter(|pos| pos.x >= 0 && pos.x < DIM && pos.y >= 0 && pos.y < DIM)
-    }
-}
 
 fn parse() -> Vec<Position> {
     PUZZLE
@@ -53,8 +35,8 @@ fn next_step(blocked: HashSet<Position>) -> impl FnMut(&Vec<Position>) -> Option
     let mut seen = HashSet::from([START]);
     move |previous| {
         let mut next = Vec::new();
-        for pos in previous {
-            for neighbor in pos.neighbors() {
+        for &pos in previous {
+            for (_, neighbor) in GRID.neighbours(pos) {
                 if !seen.contains(&neighbor) && !blocked.contains(&neighbor) {
                     seen.insert(neighbor);
                     next.push(neighbor);
