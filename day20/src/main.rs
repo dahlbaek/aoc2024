@@ -1,43 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use aoc::{Grid, Position};
+
 const PUZZLE: &[u8] = include_bytes!("puzzle");
-const DIM: isize = 141;
+const DIM: i64 = 141;
+const GRID: Grid = Grid::new(DIM, DIM);
 const SAVE_AT_LEAST: u64 = 100;
 
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
-struct Position {
-    x: isize,
-    y: isize,
-}
-
-impl Position {
-    fn neighbors<'a>(&self) -> impl Iterator<Item = Position> + 'a {
-        [
-            Position {
-                x: self.x + 1,
-                y: self.y,
-            },
-            Position {
-                x: self.x - 1,
-                y: self.y,
-            },
-            Position {
-                x: self.x,
-                y: self.y + 1,
-            },
-            Position {
-                x: self.x,
-                y: self.y - 1,
-            },
-        ]
-        .into_iter()
-        .filter(|position| {
-            position.x >= 0 && position.x < DIM && position.y >= 0 && position.y < DIM
-        })
-    }
-}
-
-fn into_usize(i: isize) -> usize {
+fn into_usize(i: i64) -> usize {
     i.try_into().unwrap()
 }
 
@@ -60,7 +30,7 @@ fn steps_from(start: Position) -> HashMap<Position, u64> {
     while !current_positions.is_empty() {
         let mut next_current_positions = Vec::new();
         for current_position in current_positions {
-            for neighbor in current_position.neighbors() {
+            for (_, neighbor) in GRID.neighbours(current_position) {
                 if get(neighbor) != b'#' {
                     if !visited.contains(&neighbor) {
                         next_current_positions.push(neighbor);
@@ -83,8 +53,11 @@ fn part1(start: Position, end: Position) -> usize {
     grid()
         .filter(|&pos| get(pos) == b'#')
         .flat_map(|wall| {
-            wall.neighbors()
-                .flat_map(move |start2| wall.neighbors().map(move |end1| (end1, wall, start2)))
+            GRID.neighbours(wall)
+                .flat_map(move |(_, start2)| {
+                    GRID.neighbours(wall)
+                        .map(move |(_, end1)| (end1, wall, start2))
+                })
                 .filter(|(end1, _, start2)| get(*start2) != b'#' && get(*end1) != b'#')
         })
         .map(|(end1, _, start2)| 2 + steps_from_start[&end1] + steps_from_end[&start2])
