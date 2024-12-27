@@ -1,8 +1,6 @@
-use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
-    hash::Hash,
-};
+use std::collections::HashSet;
+
+use aoc::Cache;
 
 const PUZZLE: &str = include_str!("puzzle");
 
@@ -37,37 +35,6 @@ fn count<'a>(
             .filter(|&j| available.contains(&target[..j]))
             .map(|j| cache.get_or_compute(&target[j..], available))
             .sum::<u64>()
-    }
-}
-
-struct Cache<K, V, Q: ?Sized, C> {
-    inner: HashMap<K, V>,
-    f: fn(&mut Self, &Q, &C) -> V,
-}
-
-impl<K, V, Q, C> Cache<K, V, Q, C>
-where
-    Q: ?Sized,
-    Q: Eq + Hash,
-    K: Eq + Hash,
-    Q: ToOwned<Owned = K>,
-    K: Borrow<Q>,
-    V: Clone,
-{
-    fn new(f: fn(&mut Self, &Q, &C) -> V) -> Cache<K, V, Q, C> {
-        let inner = HashMap::new();
-        Cache { inner, f }
-    }
-
-    fn get_or_compute(&mut self, q: &Q, c: &C) -> V {
-        match self.inner.get(q) {
-            Some(v) => v.clone(),
-            None => {
-                let v = (self.f)(self, q, c);
-                self.inner.insert(q.to_owned(), v.clone());
-                v
-            }
-        }
     }
 }
 

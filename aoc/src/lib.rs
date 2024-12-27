@@ -1,3 +1,5 @@
+use std::{borrow::Borrow, collections::HashMap, hash::Hash};
+
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Position {
     pub x: i64,
@@ -47,5 +49,36 @@ impl Grid {
         .filter(|(_, pos)| {
             pos.x >= self.xmin && pos.x <= self.xmax && pos.y >= self.ymin && pos.y <= self.ymax
         })
+    }
+}
+
+pub struct Cache<K, V, Q: ?Sized, C> {
+    inner: HashMap<K, V>,
+    f: fn(&mut Self, &Q, &C) -> V,
+}
+
+impl<K, V, Q, C> Cache<K, V, Q, C>
+where
+    Q: ?Sized,
+    Q: Eq + Hash,
+    K: Eq + Hash,
+    Q: ToOwned<Owned = K>,
+    K: Borrow<Q>,
+    V: Clone,
+{
+    pub fn new(f: fn(&mut Self, &Q, &C) -> V) -> Cache<K, V, Q, C> {
+        let inner = HashMap::new();
+        Cache { inner, f }
+    }
+
+    pub fn get_or_compute(&mut self, q: &Q, c: &C) -> V {
+        match self.inner.get(q) {
+            Some(v) => v.clone(),
+            None => {
+                let v = (self.f)(self, q, c);
+                self.inner.insert(q.to_owned(), v.clone());
+                v
+            }
+        }
     }
 }
