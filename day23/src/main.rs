@@ -1,4 +1,8 @@
-use std::{collections::HashSet, hash::Hash, iter::successors};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    iter::successors,
+};
 
 const PUZZLE: &str = include_str!("puzzle");
 
@@ -43,26 +47,25 @@ fn get_triples(vs: &HashSet<Vertex>, es: &[Edge]) -> HashSet<[Vertex; 3]> {
     triples
 }
 
-fn get_one_more(sets: &HashSet<Vec<Vertex>>, es: &[Edge]) -> Option<HashSet<Vec<Vertex>>> {
+fn get_one_more(
+    sets: &HashMap<Vec<Vertex>, HashSet<Vertex>>,
+    cached_neighbours: &HashMap<Vertex, HashSet<Vertex>>,
+) -> Option<HashMap<Vec<Vertex>, HashSet<Vertex>>> {
     let new_sets = sets
         .iter()
-        .flat_map(|s| {
-            s[1..]
-                .iter()
-                .map(|&v| neighbours(v, es))
-                .fold(neighbours(s[0], &es), |acc, next_set| {
-                    acc.intersection(&next_set).cloned().collect()
-                })
-                .iter()
-                .map(|&inter| {
-                    let mut new_s = s.clone();
-                    new_s.push(inter);
-                    new_s.sort();
-                    new_s
-                })
-                .collect::<Vec<_>>()
+        .flat_map(|(s, intersection)| {
+            intersection.iter().map(|&inter| {
+                let mut new_s = s.clone();
+                new_s.push(inter);
+                new_s.sort();
+                let new_intersection = intersection
+                    .intersection(&cached_neighbours[&inter])
+                    .cloned()
+                    .collect();
+                (new_s, new_intersection)
+            })
         })
-        .collect::<HashSet<_>>();
+        .collect::<HashMap<_, _>>();
     Some(new_sets).filter(|i| !i.is_empty())
 }
 
@@ -75,13 +78,15 @@ fn main() {
         .count();
     println!("Part 1: {}", part1);
 
-    let first = Some(vs.iter().map(|&v| vec![v]).collect());
-    let part2 = successors(first, |sets| get_one_more(sets, &es))
+    let cached_neighbours = vs.iter().map(|&v| (v, neighbours(v, &es))).collect();
+    let first = Some(vs.iter().map(|&v| (vec![v], neighbours(v, &es))).collect());
+    let part2 = successors(first, |sets| get_one_more(sets, &cached_neighbours))
         .last()
         .unwrap()
         .into_iter()
         .next()
         .unwrap()
+        .0
         .iter()
         .map(|v| v.0)
         .collect::<Vec<_>>()
